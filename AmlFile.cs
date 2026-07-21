@@ -40,20 +40,28 @@ internal static class AmlFile
 
     /// <summary>
     /// Resolves the input path to the set of files to process, in a stable order so that
-    /// order-dependent AML applies the same way on every run.
+    /// order-dependent applies run the same way on every run. When the input is a directory,
+    /// files matching any of <paramref name="patterns"/> are gathered (a file matching more
+    /// than one pattern is included once).
     /// </summary>
-    public static IReadOnlyList<string> Discover(string input, string pattern)
+    public static IReadOnlyList<string> Discover(string input, IReadOnlyList<string> patterns)
     {
         if (File.Exists(input))
         {
             return new[] { Path.GetFullPath(input) };
         }
 
-        var files = Directory.EnumerateFiles(input, pattern, SearchOption.AllDirectories)
-            .Select(Path.GetFullPath)
-            .ToList();
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pattern in patterns)
+        {
+            foreach (var file in Directory.EnumerateFiles(input, pattern, SearchOption.AllDirectories))
+            {
+                files.Add(Path.GetFullPath(file));
+            }
+        }
 
-        files.Sort(StringComparer.OrdinalIgnoreCase);
-        return files;
+        var ordered = files.ToList();
+        ordered.Sort(StringComparer.OrdinalIgnoreCase);
+        return ordered;
     }
 }

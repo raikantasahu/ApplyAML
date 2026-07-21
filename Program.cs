@@ -31,10 +31,10 @@ internal static class Program
             return ExitUsage;
         }
 
-        var files = AmlFile.Discover(options.Input, options.Pattern);
+        var files = AmlFile.Discover(options.Input, options.Patterns);
         if (files.Count == 0)
         {
-            Console.Error.WriteLine($"error: no files matching '{options.Pattern}' under {options.Input}");
+            Console.Error.WriteLine($"error: no files matching {string.Join(", ", options.Patterns)} under {options.Input}");
             return ExitUsage;
         }
 
@@ -83,15 +83,19 @@ internal static class Program
         return Report(files.Count, failures);
     }
 
-    /// <summary>Applies one file, returning false and an explanation when it fails.</summary>
+    /// <summary>
+    /// Applies one file, returning false and an explanation when it fails. A .sql file is run
+    /// as SQL; anything else is applied as AML. The response handling is shared.
+    /// </summary>
     private static bool Apply(Innovator innovator, string file, Options options, out string error)
     {
         var name = Describe(file, options.Input);
+        var isSql = Path.GetExtension(file).Equals(".sql", StringComparison.OrdinalIgnoreCase);
 
-        string aml;
+        string payload;
         try
         {
-            aml = AmlFile.Load(file);
+            payload = isSql ? SqlFile.Load(file) : AmlFile.Load(file);
         }
         catch (Exception ex) when (ex is System.Xml.XmlException or InvalidDataException or IOException)
         {
@@ -102,7 +106,7 @@ internal static class Program
 
         try
         {
-            var result = innovator.applyAML(aml);
+            var result = isSql ? innovator.applySQL(payload) : innovator.applyAML(payload);
             var failed = result.isError();
 
             // A fault is always worth showing; a successful response only when asked for.
