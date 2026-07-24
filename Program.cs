@@ -11,6 +11,12 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        // Emit UTF-8 so non-ASCII in server responses (e.g. the superscript in a unit
+        // like "g/cm³") survives a redirect to a file. Without this, a redirected stdout
+        // uses the legacy console code page, whose best-fit mapping silently rewrites such
+        // characters to ASCII lookalikes ("g/cm3") with no error. Covers Out and Error.
+        Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+
         Options options;
         try
         {
