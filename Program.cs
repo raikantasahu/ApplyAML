@@ -1,4 +1,3 @@
-using System.Xml.Linq;
 using Aras.IOM;
 
 namespace ApplyAML;
@@ -37,15 +36,6 @@ internal static class Program
             return ExitUsage;
         }
 
-        var files = AmlFile.Discover(options.Input, options.Patterns);
-        if (files.Count == 0)
-        {
-            Console.Error.WriteLine($"error: no files matching {string.Join(", ", options.Patterns)} under {options.Input}");
-            return ExitUsage;
-        }
-
-        Console.WriteLine($"Found {files.Count} file(s) to apply.");
-
         HttpServerConnection connection;
         Innovator innovator;
         try
@@ -70,15 +60,24 @@ internal static class Program
 
         Console.WriteLine($"Connected to {options.Url} [{options.Database}] as {options.User}.");
 
-        var failures = new List<string>();
+        // A single file is applied directly; a directory is walked depth-first (subdirectories
+        // before files, each level sorted by name) and each matching file applied as it is visited.
+        var applier = new AmlApplier(innovator, options);
         try
         {
-            foreach (var file in files)
+            if (File.Exists(options.Input))
             {
-                if (!Apply(innovator, file, options, out var error))
-                {
-                    failures.Add($"{Describe(file, options.Input)}: {error}");
-                }
+                applier.ProcessFile(Path.GetFullPath(options.Input));
+            }
+            else
+            {
+                var traversor = new DirectoryTraversor(
+                    applier,
+                    fileIgnore: new PatternIgnore(options.Patterns),
+                    directoryIgnore: NeverIgnore<string>.Instance,
+                    recurse: true,
+                    depthFirst: true);
+                traversor.Traverse(options.Input);
             }
         }
         finally
@@ -86,100 +85,14 @@ internal static class Program
             TryLogout(connection);
         }
 
-        return Report(files.Count, failures);
-    }
-
-    /// <summary>
-    /// Applies one file, returning false and an explanation when it fails. A .sql file is run
-    /// as SQL; anything else is applied as AML. The response handling is shared.
-    /// </summary>
-    private static bool Apply(Innovator innovator, string file, Options options, out string error)
-    {
-        var name = Describe(file, options.Input);
-        var isSql = Path.GetExtension(file).Equals(".sql", StringComparison.OrdinalIgnoreCase);
-
-        string payload;
-        try
+        if (applier.Count == 0)
         {
-            payload = isSql ? SqlFile.Load(file) : AmlFile.Load(file);
-        }
-        catch (Exception ex) when (ex is System.Xml.XmlException or InvalidDataException or IOException)
-        {
-            error = ex.Message;
-            Console.WriteLine($"FAIL {name}");
-            return false;
+            Console.Error.WriteLine(
+                $"error: no files matching {string.Join(", ", options.Patterns)} under {options.Input}");
+            return ExitUsage;
         }
 
-        try
-        {
-            var result = isSql ? innovator.applySQL(payload) : innovator.applyAML(payload);
-            var failed = result.isError();
-
-            // A fault is always worth showing; a successful response only when asked for.
-            if (options.PrintResults || failed)
-            {
-                PrintResponse(name, result);
-            }
-
-            if (failed)
-            {
-                // getErrorDetail carries the low-level cause (e.g. the SQL error), but often
-                // just repeats getErrorString, so only append it when it adds something.
-                var message = result.getErrorString()?.Trim() ?? "";
-                var detail = result.getErrorDetail()?.Trim() ?? "";
-                error = detail.Length == 0 || detail == message
-                    ? message
-                    : $"{message} ({detail})";
-                Console.WriteLine($"FAIL {name}");
-                return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-            Console.WriteLine($"FAIL {name}");
-            return false;
-        }
-
-        Console.WriteLine($"ok   {name}");
-        error = "";
-        return true;
-    }
-
-    /// <summary>Writes the server's AML response, indented for readability.</summary>
-    private static void PrintResponse(string name, Item result)
-    {
-        var xml = result.dom?.OuterXml;
-        if (string.IsNullOrEmpty(xml))
-        {
-            Console.WriteLine($"--- {name}: (empty response)");
-            return;
-        }
-
-        Console.WriteLine($"--- {name}");
-        try
-        {
-            Console.WriteLine(XDocument.Parse(xml).ToString());
-        }
-        catch (System.Xml.XmlException)
-        {
-            // Never let a formatting problem hide the response the user asked to see.
-            Console.WriteLine(xml);
-        }
-
-        Console.WriteLine("---");
-    }
-
-    /// <summary>Shortens a path to something readable relative to the input the user gave.</summary>
-    private static string Describe(string file, string input)
-    {
-        if (!Directory.Exists(input))
-        {
-            return Path.GetFileName(file);
-        }
-
-        var root = Path.GetFullPath(input);
-        return Path.GetRelativePath(root, file);
+        return Report(applier.Count, applier.Failures);
     }
 
     private static void TryLogout(HttpServerConnection connection)
