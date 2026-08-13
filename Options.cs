@@ -13,7 +13,7 @@ internal sealed class Options
     public string Database { get; private set; } = "";
     public string User { get; private set; } = "";
     public string Password { get; private set; } = "";
-    public bool PrintResults { get; private set; }
+    public bool Brief { get; private set; }
     public bool ShowHelp { get; private set; }
 
     /// <summary>
@@ -44,9 +44,9 @@ internal sealed class Options
           -p, --password <pw>      Password (plaintext or MD5). Prompted for if omitted.
               --pattern <glob>     File filter used when input is a directory. May be repeated.
                                    Default: *.xml and *.sql
-          -r, --print-results      Print the response returned for each file. Responses for
-                                   files that fail are always printed, with or without this
-                                   option.
+          -b, --brief              Print only a per-file ok/FAIL line and the final summary.
+                                   Without it, the server's response for each file is printed
+                                   too; a failing file's response is always printed either way.
           -h, --help               Show this help.
 
         Every file is attempted; failures are reported in a summary at the end.
@@ -72,9 +72,9 @@ internal sealed class Options
                 return options;
             }
 
-            if (arg is "-r" or "--print-results")
+            if (arg is "-b" or "--brief")
             {
-                options.PrintResults = true;
+                options.Brief = true;
                 continue;
             }
 

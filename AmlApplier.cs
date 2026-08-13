@@ -62,8 +62,9 @@ internal sealed class AmlApplier : IFileProcessor
             var result = isSql ? _innovator.applySQL(payload) : _innovator.applyAML(payload);
             var failed = result.isError();
 
-            // A fault is always worth showing; a successful response only when asked for.
-            if (_options.PrintResults || failed)
+            // The response is printed by default; --brief suppresses it, but a fault is always
+            // worth showing regardless.
+            if (!_options.Brief || failed)
             {
                 PrintResponse(name, result);
             }
