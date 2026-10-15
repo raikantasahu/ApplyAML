@@ -1,13 +1,14 @@
 # ApplyAML
 
-A small .NET command-line tool that applies Aras Innovator **AML** files to an
-Innovator server, using the public
+A small .NET command-line tool that applies Aras Innovator **AML** and **SQL**
+files to an Innovator server, using the public
 [`Aras.IOM`](https://www.nuget.org/packages/Aras.IOM) package.
 
-Point it at a single XML file or a directory. Each file is expected to contain
-AML — an `<AML>` root with one or more `<Item>` children, or a bare `<Item>`
-that is wrapped automatically. The tool logs in, sends each file's AML to the
-server, and reports the outcome.
+Point it at a single file or a directory. A `.sql` file runs as SQL (via
+`applySQL`). Every other file applies as AML (via `applyAML`) — an `<AML>` root
+with one or more `<Item>` children, or a bare `<Item>` that is wrapped
+automatically. Dispatch is by extension, so a directory can mix both. The tool
+logs in, processes each file, and reports the outcome.
 
 ## Build
 
@@ -23,13 +24,13 @@ The `Aras.IOM` package (net10.0) is restored from nuget.org.
 
 | Short | Long | Description |
 |-------|------|-------------|
-| `-i` | `--input <path>` | XML file, or directory searched recursively for AML files. |
+| `-i` | `--input <path>` | A file, or a directory searched recursively for AML and SQL files. |
 | `-u` | `--url <url>` | Innovator server URL, e.g. `http://host/InnovatorServer`. |
 | `-d` | `--database <name>` | Database to connect to. |
 | `-n` | `--user <name>` | Innovator login name. |
 | `-p` | `--password <pw>` | Password (plaintext or MD5). Prompted for (masked) if omitted. |
-|      | `--pattern <glob>` | File filter when the input is a directory. Default `*.xml`. |
-| `-r` | `--print-results` | Print each file's AML response. Fault responses are always printed. |
+|      | `--pattern <glob>` | File filter when the input is a directory. Default `*.xml` and `*.sql`. |
+| `-r` | `--print-results` | Print each file's server response. Fault responses are always printed. |
 | `-h` | `--help` | Show help. |
 
 Example:
@@ -42,6 +43,8 @@ accepts either.
 
 ## Behavior
 
+- **A `.sql` file runs as SQL** (via `applySQL`); every other file applies as AML
+  (via `applyAML`). Dispatch is by extension, so a directory can mix both.
 - **Directory input** is searched recursively and applied in sorted order.
 - **Every file is attempted**; failures are collected and reported in a summary
   at the end.
