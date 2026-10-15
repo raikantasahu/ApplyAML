@@ -47,6 +47,9 @@ accepts either.
   at the end.
 - A bare `<Item>` root is wrapped in `<AML>`; any other root element is rejected
   as not being AML.
+- **File items** that add a physical file get custom logic: ApplyAML uploads the
+  file and rewrites the AML to reference the new File. See
+  [FILE-HANDLING.md](FILE-HANDLING.md).
 
 ### Exit codes
 

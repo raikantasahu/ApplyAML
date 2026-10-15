@@ -12,12 +12,14 @@ internal sealed class AmlApplier : IFileProcessor
 {
     private readonly Innovator _innovator;
     private readonly Options _options;
+    private readonly FileUploader _fileUploader;
     private readonly List<string> _failures = new();
 
     public AmlApplier(Innovator innovator, Options options)
     {
         _innovator = innovator;
         _options = options;
+        _fileUploader = new FileUploader(innovator);
     }
 
     /// <summary>The number of files processed so far.</summary>
@@ -59,6 +61,21 @@ internal sealed class AmlApplier : IFileProcessor
 
         try
         {
+            // An AML payload may embed physical files to upload (a File item with a <file_path>).
+            // Upload them first and rewrite the payload to reference the new File ids. If every item
+            // was such a File, nothing is left to apply.
+            if (!isSql)
+            {
+                var processed = _fileUploader.UploadEmbeddedFiles(payload);
+                payload = processed.Aml;
+                if (!processed.HasItemsToApply)
+                {
+                    Console.WriteLine($"ok   {name}");
+                    error = "";
+                    return true;
+                }
+            }
+
             var result = isSql ? _innovator.applySQL(payload) : _innovator.applyAML(payload);
             var failed = result.isError();
 
