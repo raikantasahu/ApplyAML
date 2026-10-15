@@ -11,11 +11,11 @@ server, and reports the outcome.
 
 ## Build
 
-Requires the .NET 8 SDK.
+Requires the .NET 10 SDK.
 
     dotnet build
 
-The `Aras.IOM` package (net8.0) is restored from nuget.org.
+The `Aras.IOM` package (net10.0) is restored from nuget.org.
 
 ## Usage
 
