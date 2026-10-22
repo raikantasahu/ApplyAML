@@ -4,9 +4,9 @@ using Aras.IOM;
 namespace ApplyAML;
 
 /// <summary>
-/// The <see cref="IFileProcessor"/> that applies each file to the server: a <c>.sql</c> file is run
-/// as SQL, anything else as AML. It counts the files it processes and collects a message for each
-/// failure, so the run can print a summary and pick an exit code afterwards.
+/// The <see cref="IFileProcessor"/> that applies each file to the server as AML. It counts the
+/// files it processes and collects a message for each failure, so the run can print a summary and
+/// pick an exit code afterwards.
 /// </summary>
 internal sealed class AmlApplier : IFileProcessor
 {
@@ -39,18 +39,16 @@ internal sealed class AmlApplier : IFileProcessor
     }
 
     /// <summary>
-    /// Applies one file, returning false and an explanation when it fails. A .sql file is run
-    /// as SQL; anything else is applied as AML. The response handling is shared.
+    /// Applies one file as AML, returning false and an explanation when it fails.
     /// </summary>
     private bool Apply(string file, out string error)
     {
         var name = Describe(file);
-        var isSql = Path.GetExtension(file).Equals(".sql", StringComparison.OrdinalIgnoreCase);
 
         string payload;
         try
         {
-            payload = isSql ? SqlFile.Load(file) : AmlFile.Load(file);
+            payload = AmlFile.Load(file);
         }
         catch (Exception ex) when (ex is System.Xml.XmlException or InvalidDataException or IOException)
         {
@@ -64,19 +62,16 @@ internal sealed class AmlApplier : IFileProcessor
             // An AML payload may embed physical files to upload (a File item with a <file_path>).
             // Upload them first and rewrite the payload to reference the new File ids. If every item
             // was such a File, nothing is left to apply.
-            if (!isSql)
+            var processed = _fileUploader.UploadEmbeddedFiles(payload);
+            payload = processed.Aml;
+            if (!processed.HasItemsToApply)
             {
-                var processed = _fileUploader.UploadEmbeddedFiles(payload);
-                payload = processed.Aml;
-                if (!processed.HasItemsToApply)
-                {
-                    Console.WriteLine($"ok   {name}");
-                    error = "";
-                    return true;
-                }
+                Console.WriteLine($"ok   {name}");
+                error = "";
+                return true;
             }
 
-            var result = isSql ? _innovator.applySQL(payload) : _innovator.applyAML(payload);
+            var result = _innovator.applyAML(payload);
             var failed = result.isError();
 
             // The response is printed by default; --brief suppresses it, but a fault is always
@@ -88,8 +83,8 @@ internal sealed class AmlApplier : IFileProcessor
 
             if (failed)
             {
-                // getErrorDetail carries the low-level cause (e.g. the SQL error), but often
-                // just repeats getErrorString, so only append it when it adds something.
+                // getErrorDetail carries the low-level cause, but often just repeats
+                // getErrorString, so only append it when it adds something.
                 var message = result.getErrorString()?.Trim() ?? "";
                 var detail = result.getErrorDetail()?.Trim() ?? "";
                 error = detail.Length == 0 || detail == message
