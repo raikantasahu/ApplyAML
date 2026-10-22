@@ -18,24 +18,22 @@ internal sealed class Options
 
     /// <summary>
     /// Extensions to pick up when the input is a directory. <c>.xml</c> files are applied as
-    /// AML, <c>.sql</c> files are executed as SQL. The user can narrow this with --pattern.
+    /// AML. The user can narrow this with --pattern.
     /// </summary>
-    private static readonly string[] DefaultPatterns = { "*.xml", "*.sql" };
+    private static readonly string[] DefaultPatterns = { "*.xml" };
     private readonly List<string> _patterns = new();
     public IReadOnlyList<string> Patterns => _patterns.Count > 0 ? _patterns : DefaultPatterns;
 
     public const string Usage = """
-        ApplyAML - apply Aras Innovator AML and SQL files to a server.
+        ApplyAML - apply Aras Innovator AML files to a server.
 
         Usage:
           ApplyAML --input <file-or-directory> --url <url> --database <db> --user <name> [--password <pw>]
 
-        A .sql file is executed as SQL (via applySQL); every other file is applied as AML
-        (via applyAML). Dispatch is by extension, so a directory can mix both.
+        Each matched file is applied as AML (via applyAML).
 
         Required:
-          -i, --input <path>       A file, or a directory searched recursively. .sql files run
-                                   as SQL; .xml (and other matched) files apply as AML.
+          -i, --input <path>       A file, or a directory searched recursively for AML files.
           -u, --url <url>          Innovator server URL, e.g. http://host/InnovatorServer
           -d, --database <name>    Database to connect to.
           -n, --user <name>        Innovator login name.
@@ -43,7 +41,7 @@ internal sealed class Options
         Optional:
           -p, --password <pw>      Password (plaintext or MD5). Prompted for if omitted.
               --pattern <glob>     File filter used when input is a directory. May be repeated.
-                                   Default: *.xml and *.sql
+                                   Default: *.xml
           -b, --brief              Print only a per-file ok/FAIL line and the final summary.
                                    Without it, the server's response for each file is printed
                                    too; a failing file's response is always printed either way.

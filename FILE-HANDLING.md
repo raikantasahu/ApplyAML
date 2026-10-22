@@ -13,7 +13,7 @@ that is added with a physical file:
 - The item has a `<file_path>` child.
 
 A File item that does not meet all three conditions stays unchanged. ApplyAML sends it to the server
-as normal AML. ApplyAML does not process SQL files for file upload.
+as normal AML.
 
 ## What it does
 
